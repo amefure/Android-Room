@@ -15,15 +15,15 @@ import com.example.room.room.UserDatabase
 import io.reactivex.Completable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxkotlin.addTo
 import io.reactivex.schedulers.Schedulers
 
 class MainActivity : AppCompatActivity() {
-    companion object {
-        lateinit var db : UserDatabase
-        lateinit var dao : UserDao
-    }
+
+    lateinit var db : UserDatabase
+    lateinit var dao : UserDao
+
     private val compositeDisposable = CompositeDisposable()
-    private lateinit var adapter: MainAdapter
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -48,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
         getButton.setOnClickListener {
             display.text = "取得したよ"
-            getUser(1)
+            getUser(0) // 取得したいIDを渡す
         }
 
         allDeleteButton.setOnClickListener {
@@ -69,9 +69,9 @@ class MainActivity : AppCompatActivity() {
 
         Completable.fromAction {
             dao.insert(user)
-        }
-            .subscribeOn(Schedulers.io())
+        }.subscribeOn(Schedulers.io())
             .subscribe()
+            .addTo(compositeDisposable)
     }
 
     private fun getUser(id : Int){
@@ -91,32 +91,29 @@ class MainActivity : AppCompatActivity() {
         Completable.fromAction { dao.deleteAll() }
             .subscribeOn(Schedulers.io())
             .subscribe()
+            .addTo(compositeDisposable)
     }
 
     private fun subscribeAllUser(){
-
         val recyclerView: RecyclerView = findViewById(R.id.main_list)
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.addItemDecoration(
             DividerItemDecoration(this, DividerItemDecoration.VERTICAL)
         )
-
-        compositeDisposable.add(
-            dao.getAll()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    {
-                        //データ取得完了時の処理
-                        val data = ArrayList<User>()
-                        it.forEach {
-                                user -> data.add(user)
-                        }
-                        val adapter = MainAdapter(data)
-                        recyclerView.adapter = adapter
+        dao.getAll()
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                {
+                    //データ取得完了時の処理
+                    val data = ArrayList<User>()
+                    it.forEach {
+                            user -> data.add(user)
                     }
-                )
-        )
+                    val adapter = MainAdapter(data)
+                    recyclerView.adapter = adapter
+                }
+            ).addTo(compositeDisposable)
     }
 
 
